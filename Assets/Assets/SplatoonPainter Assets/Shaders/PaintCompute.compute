@@ -1,0 +1,33 @@
+#pragma kernel CSMain
+
+// Textures
+RWTexture2D<float4> cMaskTex;
+RWTexture2D<float4> cUnwrappedUVTex;
+RWTexture2D<float4> cRawColorMaskTex;
+
+// Brush data
+float4 cBrushColor;
+float3 cBrushPosition;
+float cBrushRadius;
+
+// Transform data
+float4x4 ModelMatrix;
+
+[numthreads(8,8,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    float4 texObjectPos = cUnwrappedUVTex[id.xy];
+    texObjectPos.w = 1;
+    float3 WorldPos = mul(ModelMatrix, texObjectPos);
+
+    float brushtoworldDistance = distance(WorldPos, cBrushPosition);
+    float brushIntensity = smoothstep(cBrushRadius, 0, brushtoworldDistance);
+    float4 maskColor = cMaskTex[id.xy];
+    float4 finalcolor = lerp(maskColor, cBrushColor, brushIntensity);
+
+    if (brushtoworldDistance < cBrushRadius)
+    {
+        cMaskTex[id.xy] = finalcolor;
+        cRawColorMaskTex[id.xy] = cBrushColor;
+    }
+}

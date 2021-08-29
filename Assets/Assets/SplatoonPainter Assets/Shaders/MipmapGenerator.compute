@@ -1,0 +1,57 @@
+#pragma kernel CSMain
+#define MAX_TEAMCOLORS 4
+
+bool compareColor(float4 color1, float4 color2)
+{
+    return (
+        color1.x == color2.x &&
+        color1.y == color2.y &&
+        color1.z == color2.z
+    );
+}
+
+RWTexture2D<float4> cSourceTexture;
+RWTexture2D<float4> cTargetTexture;
+int cNumTeamColors;
+float4 cTeamColors[MAX_TEAMCOLORS];
+
+[numthreads(8,8,1)]
+void CSMain (uint3 id : SV_DispatchThreadID)
+{
+    float4 finalColor = float4(0,0,0,0);
+    int teamColorCounters[MAX_TEAMCOLORS] = {0, 0, 0, 0};
+    for (int x = 0; x < 2; x++)
+    {
+        for (int y = 0; y < 2; y++)
+        {
+            uint2 pixelPos = id.xy;
+            pixelPos.x = (pixelPos.x * 2) + x;
+            pixelPos.y = (pixelPos.y * 2) + y;
+
+            float4 colorToCompare = cSourceTexture[pixelPos.xy];
+
+            for (int i = 0; i < cNumTeamColors; i++)
+            {
+                if (compareColor(colorToCompare, cTeamColors[i]))
+                {
+                    teamColorCounters[i]++;
+                }
+            }
+
+            //cTargetTexture[id.xy] = colorToCompare;
+        }
+    }
+
+    int minCounter = 0;
+
+    for (int i = 0; i < cNumTeamColors; i++)
+    {
+        if (teamColorCounters[i] > minCounter)
+        {
+            minCounter = teamColorCounters[i];
+            finalColor = cTeamColors[i];
+        }
+    }
+
+    cTargetTexture[id.xy] = finalColor;
+}
